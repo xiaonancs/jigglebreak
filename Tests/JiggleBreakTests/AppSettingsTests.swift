@@ -32,6 +32,35 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(settings.reminderMessage, Defaults.reminderMessage)
     }
 
+    func testRemindersMigratesFromLegacySingleReminder() {
+        let settings = makeSettings()
+
+        settings.reminderIntervalMinutes = 20
+        settings.reminderMessage = "起来走走"
+        settings.reminderBubbleDurationSeconds = 15
+
+        let reminders = settings.reminders
+        XCTAssertEqual(reminders.count, 1)
+        let first = reminders[0]
+        XCTAssertEqual(first.type, .interval)
+        XCTAssertEqual(first.intervalSeconds, 20 * 60)
+        XCTAssertEqual(first.message, "起来走走")
+        XCTAssertEqual(first.durationSeconds, 15)
+    }
+
+    func testRemindersPersistAndRoundTrip() {
+        let settings = makeSettings()
+
+        let custom = [
+            Reminder(message: "喝水", type: .interval, intervalSeconds: 90),
+            Reminder(message: "周会", type: .weekly, weekday: 4, hour: 10, minute: 0, style: .banner)
+        ]
+        settings.reminders = custom
+
+        XCTAssertEqual(settings.reminders, custom)
+        XCTAssertEqual(settings.enabledReminders.count, 2)
+    }
+
     private func makeSettings() -> AppSettings {
         let suiteName = "local.jigglebreak.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

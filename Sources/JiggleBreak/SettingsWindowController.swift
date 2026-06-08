@@ -21,9 +21,6 @@ private final class SettingsViewController: NSViewController {
     private let settings: AppSettings
     private let onSave: () -> Void
 
-    private let reminderIntervalField = NSTextField()
-    private let reminderMessageField = NSTextField()
-    private let reminderBubbleDurationField = NSTextField()
     private let jiggleIntervalField = NSTextField()
     private let jiggleDistanceField = NSTextField()
     private let awakeCheckbox = NSButton(checkboxWithTitle: "保持系统和显示器唤醒", target: nil, action: nil)
@@ -49,9 +46,6 @@ private final class SettingsViewController: NSViewController {
         titleLabel.font = .boldSystemFont(ofSize: 17)
 
         let grid = NSGridView(views: [
-            [label("提醒间隔（分钟）"), reminderIntervalField],
-            [label("提醒文案"), reminderMessageField],
-            [label("气泡倒计时（秒）"), reminderBubbleDurationField],
             [label("鼠标微动间隔（秒）"), jiggleIntervalField],
             [label("移动幅度（点）"), jiggleDistanceField],
             [label("保持唤醒"), awakeCheckbox],
@@ -93,9 +87,6 @@ private final class SettingsViewController: NSViewController {
     }
 
     private func populateFields() {
-        reminderIntervalField.integerValue = settings.reminderIntervalMinutes
-        reminderMessageField.stringValue = settings.reminderMessage
-        reminderBubbleDurationField.integerValue = settings.reminderBubbleDurationSeconds
         jiggleIntervalField.doubleValue = settings.jiggleIntervalSeconds
         jiggleDistanceField.doubleValue = settings.jiggleDistancePoints
         awakeCheckbox.state = settings.awakeEnabled ? .on : .off
@@ -108,9 +99,6 @@ private final class SettingsViewController: NSViewController {
     }
 
     @objc private func save() {
-        settings.reminderIntervalMinutes = max(1, reminderIntervalField.integerValue)
-        settings.reminderMessage = reminderMessageField.stringValue
-        settings.reminderBubbleDurationSeconds = max(3, reminderBubbleDurationField.integerValue)
         settings.jiggleIntervalSeconds = max(1, jiggleIntervalField.doubleValue)
         settings.jiggleDistancePoints = max(0.5, jiggleDistanceField.doubleValue)
         settings.awakeEnabled = awakeCheckbox.state == .on

@@ -8,6 +8,7 @@ final class StatusMenuController: NSObject {
     private let awakeFeature: AwakeFeature
     private let reminderBubbleController: ReminderBubbleController
     private var settingsWindowController: SettingsWindowController?
+    private var remindersWindowController: RemindersWindowController?
     private var loginItemError: String?
     private var accessibilityWarning: String?
 
@@ -18,8 +19,8 @@ final class StatusMenuController: NSObject {
         self.statusItem = statusItem
         self.settings = settings
         self.reminderBubbleController = bubbleController
-        self.reminderFeature = ReminderFeature(settings: settings) {
-            bubbleController.show()
+        self.reminderFeature = ReminderFeature(settings: settings) { reminder in
+            bubbleController.show(reminder)
         }
         self.mouseJigglerFeature = MouseJigglerFeature(settings: settings)
         self.awakeFeature = AwakeFeature(settings: settings)
@@ -80,6 +81,10 @@ final class StatusMenuController: NSObject {
         let testReminderItem = NSMenuItem(title: "立即提醒一次", action: #selector(sendReminderNow), keyEquivalent: "")
         testReminderItem.target = self
         menu.addItem(testReminderItem)
+
+        let manageRemindersItem = NSMenuItem(title: "管理提醒...", action: #selector(openReminders), keyEquivalent: "")
+        manageRemindersItem.target = self
+        menu.addItem(manageRemindersItem)
 
         let jigglerTitle = mouseJigglerFeature.isRunning ? "停止鼠标微动" : "开启鼠标微动"
         let jigglerItem = NSMenuItem(title: jigglerTitle, action: #selector(toggleJiggler), keyEquivalent: "j")
@@ -169,6 +174,25 @@ final class StatusMenuController: NSObject {
             awakeFeature.start()
         }
         rebuildMenu()
+    }
+
+    @objc private func openReminders() {
+        if remindersWindowController == nil {
+            remindersWindowController = RemindersWindowController(
+                settings: settings,
+                onSave: { [weak self] in
+                    self?.reminderFeature.restartIfNeeded()
+                    self?.rebuildMenu()
+                },
+                onPreview: { [weak self] reminder in
+                    self?.reminderBubbleController.show(reminder)
+                }
+            )
+        }
+
+        remindersWindowController?.showWindow(nil)
+        remindersWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func openSettings() {

@@ -4,7 +4,12 @@
 
 - **Mouse Jiggler**：定时模拟鼠标微动，防止系统因为闲置而休眠 / 锁屏。
 - **Keep Awake**：保持系统唤醒状态。
-- **Break Reminder**：定时弹出久坐提醒气泡，提醒你起身休息。
+- **自定义提醒**：可创建多条提醒，每条都能自定义内容、颜色与样式，并支持两种触发方式：
+  - **按间隔重复**：每隔 N 秒 / 分钟 / 小时 提醒一次。
+  - **每周定时**：指定「周几 + 几点几分」，到点提醒一次，自动排到下周。
+  - 气泡样式可选 **卡片 / 彩色横幅 / 描边**，颜色任意自定义。
+
+在菜单栏点击「管理提醒...」即可增删、编辑和预览提醒。
 
 ## 系统要求
 
@@ -17,7 +22,7 @@
 
 从 [Releases](../../releases) 页面下载最新的 `JiggleBreak-x.y.z.zip`，解压后将 `JiggleBreak.app` 拖入 `/Applications`。
 
-仓库内也提供了一份打包好的安装包：[`dist/JiggleBreak-0.1.0.zip`](dist/JiggleBreak-0.1.0.zip)。
+仓库内也提供了一份打包好的安装包：[`dist/JiggleBreak-0.2.0.zip`](dist/JiggleBreak-0.2.0.zip)。
 
 > 首次打开时，如果系统提示「无法验证开发者」，可在「系统设置 → 隐私与安全性」中点击「仍要打开」。
 
@@ -49,6 +54,7 @@ dist/                     打包好的安装包
 
 ```bash
 swift build -c release        # 编译可执行文件
+swift test                    # 运行单元测试（需安装完整 Xcode，提供 XCTest）
 ./scripts/build-app.sh        # 打包成 JiggleBreak.app
 ./scripts/install-app.sh      # 安装到 /Applications
 ./scripts/verify.sh           # 校验

@@ -14,14 +14,17 @@ final class ReminderBubbleController {
         self.settings = settings
     }
 
-    func show() {
+    func show(_ reminder: Reminder) {
         timer?.invalidate()
+        close()
 
-        duration = TimeInterval(settings.reminderBubbleDurationSeconds)
+        duration = TimeInterval(reminder.durationSeconds)
         startedAt = Date()
 
         let view = ReminderBubbleView(frame: NSRect(x: 0, y: 0, width: 330, height: 46))
-        view.message = settings.reminderMessage
+        view.message = reminder.resolvedMessage
+        view.accentColor = NSColor(hex: reminder.colorHex) ?? .controlAccentColor
+        view.style = reminder.style
         view.remainingSeconds = Int(duration.rounded())
         view.progress = 1
         view.onClose = { [weak self] in
@@ -85,6 +88,14 @@ private final class ReminderBubbleView: NSView {
         didSet { needsDisplay = true }
     }
 
+    var accentColor: NSColor = .controlAccentColor {
+        didSet { needsDisplay = true }
+    }
+
+    var style: ReminderStyle = .card {
+        didSet { needsDisplay = true }
+    }
+
     var remainingSeconds = Defaults.reminderBubbleDurationSeconds {
         didSet { needsDisplay = true }
     }
@@ -120,15 +131,47 @@ private final class ReminderBubbleView: NSView {
         let bodyRect = bounds.insetBy(dx: 6, dy: 5)
         let path = NSBezierPath(roundedRect: bodyRect, xRadius: 12, yRadius: 12)
 
-        NSColor.windowBackgroundColor.withAlphaComponent(0.96).setFill()
-        path.fill()
-
-        NSColor.separatorColor.withAlphaComponent(0.35).setStroke()
-        path.lineWidth = 1
-        path.stroke()
+        switch style {
+        case .card:
+            NSColor.windowBackgroundColor.withAlphaComponent(0.96).setFill()
+            path.fill()
+            accentColor.withAlphaComponent(0.35).setStroke()
+            path.lineWidth = 1
+            path.stroke()
+        case .banner:
+            accentColor.setFill()
+            path.fill()
+        case .outline:
+            NSColor.windowBackgroundColor.withAlphaComponent(0.98).setFill()
+            path.fill()
+            accentColor.setStroke()
+            path.lineWidth = 2
+            path.stroke()
+        }
 
         drawText(in: bodyRect)
         drawProgress(in: bodyRect)
+    }
+
+    private var bodyTextColor: NSColor {
+        switch style {
+        case .banner: return accentColor.readableForeground
+        case .card, .outline: return .labelColor
+        }
+    }
+
+    private var timeTextColor: NSColor {
+        switch style {
+        case .banner: return accentColor.readableForeground.withAlphaComponent(0.9)
+        case .card, .outline: return accentColor
+        }
+    }
+
+    private var progressFillColor: NSColor {
+        switch style {
+        case .banner: return accentColor.readableForeground.withAlphaComponent(0.9)
+        case .card, .outline: return accentColor
+        }
     }
 
     private func configureCloseButton() {
@@ -145,11 +188,11 @@ private final class ReminderBubbleView: NSView {
     private func drawText(in rect: NSRect) {
         let bodyAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: NSColor.labelColor
+            .foregroundColor: bodyTextColor
         ]
         let timeAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold),
-            .foregroundColor: NSColor.controlAccentColor
+            .foregroundColor: timeTextColor
         ]
 
         NSString(string: message).draw(
@@ -165,13 +208,16 @@ private final class ReminderBubbleView: NSView {
     private func drawProgress(in rect: NSRect) {
         let trackRect = NSRect(x: rect.minX + 14, y: rect.maxY - 9, width: rect.width - 28, height: 3)
         let trackPath = NSBezierPath(roundedRect: trackRect, xRadius: 1.5, yRadius: 1.5)
-        NSColor.quaternaryLabelColor.setFill()
+        let trackColor: NSColor = style == .banner
+            ? accentColor.readableForeground.withAlphaComponent(0.25)
+            : .quaternaryLabelColor
+        trackColor.setFill()
         trackPath.fill()
 
         let fillWidth = max(0, min(trackRect.width, trackRect.width * progress))
         let fillRect = NSRect(x: trackRect.minX, y: trackRect.minY, width: fillWidth, height: trackRect.height)
         let fillPath = NSBezierPath(roundedRect: fillRect, xRadius: 3, yRadius: 3)
-        NSColor.controlAccentColor.setFill()
+        progressFillColor.setFill()
         fillPath.fill()
     }
 
