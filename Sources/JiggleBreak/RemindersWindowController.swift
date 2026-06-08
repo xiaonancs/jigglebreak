@@ -17,7 +17,7 @@ final class RemindersWindowController: NSWindowController {
     }
 }
 
-private final class RemindersViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
+private final class RemindersViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
     private let settings: AppSettings
     private let onSave: () -> Void
     private let onPreview: (Reminder) -> Void
@@ -150,17 +150,24 @@ private final class RemindersViewController: NSViewController, NSTableViewDataSo
 
     private func configureTable() {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("reminder"))
-        column.width = 200
+        column.width = 280
+        column.minWidth = 280
+        column.maxWidth = 800
         tableView.addTableColumn(column)
         tableView.headerView = nil
-        tableView.rowHeight = 38
+        tableView.rowHeight = 28
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.usesAutomaticRowHeights = false
+        tableView.usesAutomaticRowHeights = true
+        tableView.intercellSpacing = NSSize(width: 0, height: 1)
+        tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.style = .inset
+        tableView.selectionHighlightStyle = .regular
 
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = true
+        scrollView.autohidesScrollers = true
         scrollView.borderType = .bezelBorder
         scrollView.translatesAutoresizingMaskIntoConstraints = false
     }
@@ -171,30 +178,63 @@ private final class RemindersViewController: NSViewController, NSTableViewDataSo
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let reminder = reminders[row]
+        let columnWidth = tableColumn?.width ?? 280
 
-        let toggle = NSButton(checkboxWithTitle: "", target: self, action: #selector(toggleEnabled(_:)))
+        let container = NSView()
+
+        let toggle = NSSwitch()
+        toggle.target = self
+        toggle.action = #selector(toggleEnabled(_:))
         toggle.tag = row
         toggle.state = reminder.enabled ? .on : .off
+        toggle.controlSize = .mini
+        toggle.translatesAutoresizingMaskIntoConstraints = false
+        toggle.setContentHuggingPriority(.required, for: .horizontal)
 
         let swatch = NSView()
         swatch.wantsLayer = true
         swatch.layer?.backgroundColor = (NSColor(hex: reminder.colorHex) ?? .controlAccentColor).cgColor
-        swatch.layer?.cornerRadius = 6
+        swatch.layer?.cornerRadius = 5
         swatch.translatesAutoresizingMaskIntoConstraints = false
-        swatch.widthAnchor.constraint(equalToConstant: 12).isActive = true
-        swatch.heightAnchor.constraint(equalToConstant: 12).isActive = true
 
         let label = NSTextField(labelWithString: reminder.summary)
-        label.lineBreakMode = .byTruncatingTail
-        label.font = .systemFont(ofSize: 12)
+        label.font = .systemFont(ofSize: 11)
+        label.alignment = .left
         label.textColor = reminder.enabled ? .labelColor : .tertiaryLabelColor
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.maximumNumberOfLines = 2
+        label.lineBreakMode = .byTruncatingTail
+        label.cell?.wraps = true
+        label.cell?.truncatesLastVisibleLine = true
+        label.preferredMaxLayoutWidth = columnWidth - 64
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let stack = NSStackView(views: [toggle, swatch, label])
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 8
-        stack.edgeInsets = NSEdgeInsets(top: 0, left: 6, bottom: 0, right: 6)
-        return stack
+        container.addSubview(toggle)
+        container.addSubview(swatch)
+        container.addSubview(label)
+
+        let topPadding = label.topAnchor.constraint(equalTo: container.topAnchor, constant: 5)
+        let bottomPadding = container.bottomAnchor.constraint(equalTo: label.bottomAnchor, constant: 5)
+        topPadding.priority = .defaultHigh
+        bottomPadding.priority = .defaultHigh
+
+        NSLayoutConstraint.activate([
+            toggle.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
+            toggle.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+
+            swatch.leadingAnchor.constraint(equalTo: toggle.trailingAnchor, constant: 12),
+            swatch.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            swatch.widthAnchor.constraint(equalToConstant: 9),
+            swatch.heightAnchor.constraint(equalToConstant: 9),
+
+            label.leadingAnchor.constraint(equalTo: swatch.trailingAnchor, constant: 9),
+            label.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+            topPadding,
+            bottomPadding,
+            container.heightAnchor.constraint(greaterThanOrEqualToConstant: 26)
+        ])
+
+        return container
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
@@ -205,27 +245,42 @@ private final class RemindersViewController: NSViewController, NSTableViewDataSo
     // MARK: - Editor build
 
     private func configureEditor() {
+        enabledCheckbox.target = self
+        enabledCheckbox.action = #selector(editorDidChange)
+
         ReminderType.allCases.forEach { typePopup.addItem(withTitle: $0.displayName) }
         typePopup.target = self
         typePopup.action = #selector(typeChanged)
 
         intervalUnits.forEach { intervalUnitPopup.addItem(withTitle: $0.title) }
+        intervalUnitPopup.target = self
+        intervalUnitPopup.action = #selector(editorDidChange)
         intervalValueField.alignment = .right
+        intervalValueField.delegate = self
         setNumberWidth(intervalValueField, 70)
 
         for symbol in Reminder.weekdaySymbols {
             weekdayPopup.addItem(withTitle: symbol)
         }
+        weekdayPopup.target = self
+        weekdayPopup.action = #selector(editorDidChange)
         setNumberWidth(hourField, 44)
         setNumberWidth(minuteField, 44)
         hourField.alignment = .center
         minuteField.alignment = .center
+        hourField.delegate = self
+        minuteField.delegate = self
 
         colorWell.translatesAutoresizingMaskIntoConstraints = false
+        colorWell.target = self
+        colorWell.action = #selector(editorDidChange)
         colorWell.widthAnchor.constraint(equalToConstant: 60).isActive = true
         colorWell.heightAnchor.constraint(equalToConstant: 24).isActive = true
 
         ReminderStyle.allCases.forEach { stylePopup.addItem(withTitle: $0.displayName) }
+        stylePopup.target = self
+        stylePopup.action = #selector(editorDidChange)
+        durationField.delegate = self
         setNumberWidth(durationField, 60)
 
         previewButton.target = self
@@ -233,6 +288,7 @@ private final class RemindersViewController: NSViewController, NSTableViewDataSo
         previewButton.bezelStyle = .rounded
 
         messageField.placeholderString = Defaults.reminderMessage
+        messageField.delegate = self
         messageField.translatesAutoresizingMaskIntoConstraints = false
         messageField.widthAnchor.constraint(equalToConstant: 230).isActive = true
 
@@ -377,9 +433,22 @@ private final class RemindersViewController: NSViewController, NSTableViewDataSo
     @objc private func typeChanged() {
         let type = ReminderType.allCases[safe: typePopup.indexOfSelectedItem] ?? .interval
         updateTypeRowVisibility(for: type)
+        editorDidChange()
     }
 
-    @objc private func toggleEnabled(_ sender: NSButton) {
+    /// 编辑器任意字段变化时，实时把内容写回模型并刷新左侧列表标题。
+    @objc private func editorDidChange() {
+        commitEditor()
+        if let index = editingIndex {
+            reloadRow(index)
+        }
+    }
+
+    func controlTextDidChange(_ obj: Notification) {
+        editorDidChange()
+    }
+
+    @objc private func toggleEnabled(_ sender: NSSwitch) {
         guard reminders.indices.contains(sender.tag) else { return }
         reminders[sender.tag].enabled = sender.state == .on
         if sender.tag == selectedIndex {
@@ -392,7 +461,7 @@ private final class RemindersViewController: NSViewController, NSTableViewDataSo
         if sender.selectedSegment == 0 {
             commitEditor()
             editingIndex = nil
-            reminders.append(Reminder())
+            reminders.append(Reminder(message: ""))
             tableView.reloadData()
             let newIndex = reminders.count - 1
             tableView.selectRowIndexes(IndexSet(integer: newIndex), byExtendingSelection: false)

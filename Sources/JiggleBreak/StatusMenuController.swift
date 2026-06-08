@@ -82,10 +82,6 @@ final class StatusMenuController: NSObject {
         testReminderItem.target = self
         menu.addItem(testReminderItem)
 
-        let manageRemindersItem = NSMenuItem(title: "管理提醒...", action: #selector(openReminders), keyEquivalent: "")
-        manageRemindersItem.target = self
-        menu.addItem(manageRemindersItem)
-
         let jigglerTitle = mouseJigglerFeature.isRunning ? "停止鼠标微动" : "开启鼠标微动"
         let jigglerItem = NSMenuItem(title: jigglerTitle, action: #selector(toggleJiggler), keyEquivalent: "j")
         jigglerItem.target = self
@@ -110,9 +106,15 @@ final class StatusMenuController: NSObject {
 
         menu.addItem(.separator())
 
-        let settingsItem = NSMenuItem(title: "设置...", action: #selector(openSettings), keyEquivalent: ",")
+        let manageRemindersItem = NSMenuItem(title: "管理提醒", action: #selector(openReminders), keyEquivalent: "")
+        manageRemindersItem.target = self
+        menu.addItem(manageRemindersItem)
+
+        let settingsItem = NSMenuItem(title: "设置", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
+
+        menu.addItem(.separator())
 
         let dockItem = NSMenuItem(title: "隐藏 Dock 图标", action: #selector(toggleDockIcon), keyEquivalent: "")
         dockItem.target = self
