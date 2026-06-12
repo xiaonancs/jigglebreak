@@ -57,10 +57,7 @@ final class MouseJigglerFeature: AppFeature {
         }
 
         let current = event.location
-        let next = CGPoint(
-            x: current.x + CGFloat(settings.jiggleDistancePoints) * direction,
-            y: current.y
-        )
+        let next = nextCursorPosition(from: current)
         direction *= -1
 
         CGWarpMouseCursorPosition(next)
@@ -78,10 +75,39 @@ final class MouseJigglerFeature: AppFeature {
         }
     }
 
+    private func nextCursorPosition(from current: CGPoint) -> CGPoint {
+        let distance = CGFloat(settings.jiggleDistancePoints)
+        let visibleFrame = NSScreen.screens
+            .first { $0.frame.contains(current) }?
+            .visibleFrame ?? NSScreen.main?.visibleFrame
+
+        guard let frame = visibleFrame else {
+            return CGPoint(x: current.x + distance * direction, y: current.y)
+        }
+
+        let insetFrame = frame.insetBy(dx: 2, dy: 2)
+        let primary = CGPoint(x: current.x + distance * direction, y: current.y)
+        let clampedPrimary = primary.clamped(to: insetFrame)
+        if clampedPrimary != current {
+            return clampedPrimary
+        }
+
+        return CGPoint(x: current.x - distance * direction, y: current.y).clamped(to: insetFrame)
+    }
+
     private func scheduleTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: settings.jiggleIntervalSeconds, repeats: true) { [weak self] _ in
             self?.jiggleOnce()
         }
         timer?.tolerance = min(settings.jiggleIntervalSeconds * 0.1, 2)
+    }
+}
+
+private extension CGPoint {
+    func clamped(to rect: CGRect) -> CGPoint {
+        CGPoint(
+            x: min(max(x, rect.minX), rect.maxX),
+            y: min(max(y, rect.minY), rect.maxY)
+        )
     }
 }

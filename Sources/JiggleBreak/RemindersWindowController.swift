@@ -1,8 +1,11 @@
 import AppKit
 
 final class RemindersWindowController: NSWindowController {
+    private let remindersViewController: RemindersViewController
+
     init(settings: AppSettings, onSave: @escaping () -> Void, onPreview: @escaping (Reminder) -> Void) {
         let viewController = RemindersViewController(settings: settings, onSave: onSave, onPreview: onPreview)
+        self.remindersViewController = viewController
         let window = NSWindow(contentViewController: viewController)
         window.title = "提醒管理"
         window.styleMask = [.titled, .closable]
@@ -14,6 +17,10 @@ final class RemindersWindowController: NSWindowController {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         nil
+    }
+
+    func reloadFromSettings() {
+        remindersViewController.reloadFromSettings()
     }
 }
 
@@ -357,6 +364,23 @@ private final class RemindersViewController: NSViewController, NSTableViewDataSo
     private var selectedIndex: Int? {
         let row = tableView.selectedRow
         return reminders.indices.contains(row) ? row : nil
+    }
+
+    fileprivate func reloadFromSettings() {
+        commitEditor()
+        reminders = settings.reminders
+        editingIndex = nil
+
+        guard isViewLoaded else {
+            return
+        }
+
+        tableView.reloadData()
+        if !reminders.isEmpty {
+            let row = min(max(tableView.selectedRow, 0), reminders.count - 1)
+            tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        }
+        loadEditorFromSelection()
     }
 
     private func loadEditorFromSelection() {

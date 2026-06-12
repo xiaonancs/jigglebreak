@@ -192,6 +192,9 @@ final class StatusMenuController: NSObject {
             )
         }
 
+        if remindersWindowController?.window?.isVisible != true {
+            remindersWindowController?.reloadFromSettings()
+        }
         remindersWindowController?.showWindow(nil)
         remindersWindowController?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

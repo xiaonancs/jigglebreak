@@ -21,7 +21,8 @@ final class ReminderBubbleController {
         duration = TimeInterval(reminder.durationSeconds)
         startedAt = Date()
 
-        let view = ReminderBubbleView(frame: NSRect(x: 0, y: 0, width: 330, height: 46))
+        let viewSize = ReminderBubbleView.preferredSize(for: reminder.resolvedMessage)
+        let view = ReminderBubbleView(frame: NSRect(origin: .zero, size: viewSize))
         view.message = reminder.resolvedMessage
         view.accentColor = NSColor(hex: reminder.colorHex) ?? .controlAccentColor
         view.style = reminder.style
@@ -82,6 +83,19 @@ final class ReminderBubbleController {
 }
 
 private final class ReminderBubbleView: NSView {
+    private enum Layout {
+        static let minWidth: CGFloat = 330
+        static let maxWidth: CGFloat = 460
+        static let horizontalPadding: CGFloat = 20
+        static let verticalPadding: CGFloat = 14
+        static let timeWidth: CGFloat = 56
+        static let closeWidth: CGFloat = 20
+        static let controlGap: CGFloat = 18
+        static let progressHeight: CGFloat = 3
+        static let progressTopGap: CGFloat = 8
+        static let cornerRadius: CGFloat = 12
+    }
+
     private let closeButton = NSButton()
 
     var message = "" {
@@ -122,14 +136,14 @@ private final class ReminderBubbleView: NSView {
 
     override func layout() {
         super.layout()
-        closeButton.frame = NSRect(x: bounds.maxX - 32, y: 12, width: 20, height: 20)
+        closeButton.frame = NSRect(x: bounds.maxX - 32, y: 12, width: Layout.closeWidth, height: Layout.closeWidth)
     }
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
 
         let bodyRect = bounds.insetBy(dx: 6, dy: 5)
-        let path = NSBezierPath(roundedRect: bodyRect, xRadius: 12, yRadius: 12)
+        let path = NSBezierPath(roundedRect: bodyRect, xRadius: Layout.cornerRadius, yRadius: Layout.cornerRadius)
 
         switch style {
         case .card:
@@ -188,15 +202,22 @@ private final class ReminderBubbleView: NSView {
     private func drawText(in rect: NSRect) {
         let bodyAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 13, weight: .medium),
-            .foregroundColor: bodyTextColor
+            .foregroundColor: bodyTextColor,
+            .paragraphStyle: bodyParagraphStyle
         ]
         let timeAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold),
             .foregroundColor: timeTextColor
         ]
 
+        let textRect = NSRect(
+            x: rect.minX + Layout.horizontalPadding,
+            y: rect.minY + 9,
+            width: messageWidth(in: rect),
+            height: rect.height - Layout.verticalPadding - Layout.progressTopGap - Layout.progressHeight
+        )
         NSString(string: message).draw(
-            in: NSRect(x: rect.minX + 14, y: rect.minY + 9, width: rect.width - 124, height: 18),
+            in: textRect,
             withAttributes: bodyAttributes
         )
         NSString(string: formattedTime(remainingSeconds)).draw(
@@ -206,7 +227,12 @@ private final class ReminderBubbleView: NSView {
     }
 
     private func drawProgress(in rect: NSRect) {
-        let trackRect = NSRect(x: rect.minX + 14, y: rect.maxY - 9, width: rect.width - 28, height: 3)
+        let trackRect = NSRect(
+            x: rect.minX + Layout.horizontalPadding,
+            y: rect.maxY - 9,
+            width: rect.width - Layout.horizontalPadding * 2,
+            height: Layout.progressHeight
+        )
         let trackPath = NSBezierPath(roundedRect: trackRect, xRadius: 1.5, yRadius: 1.5)
         let trackColor: NSColor = style == .banner
             ? accentColor.readableForeground.withAlphaComponent(0.25)
@@ -225,6 +251,50 @@ private final class ReminderBubbleView: NSView {
         let minutes = seconds / 60
         let remaining = seconds % 60
         return String(format: "%02d:%02d", minutes, remaining)
+    }
+
+    static func preferredSize(for message: String) -> NSSize {
+        let maxTextWidth = Layout.maxWidth
+            - Layout.horizontalPadding * 2
+            - Layout.timeWidth
+            - Layout.closeWidth
+            - Layout.controlGap * 2
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 13, weight: .medium),
+            .paragraphStyle: paragraphStyle
+        ]
+        let textHeight = NSString(string: message).boundingRect(
+            with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes
+        ).height
+
+        let width = Layout.maxWidth
+        let height = max(
+            46,
+            ceil(textHeight) + Layout.verticalPadding * 2 + Layout.progressTopGap + Layout.progressHeight
+        )
+        return NSSize(width: max(Layout.minWidth, width), height: min(height, 116))
+    }
+
+    private var bodyParagraphStyle: NSParagraphStyle {
+        Self.paragraphStyle
+    }
+
+    private static var paragraphStyle: NSParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        style.lineBreakMode = .byTruncatingTail
+        style.maximumLineHeight = 17
+        style.lineSpacing = 1
+        return style
+    }
+
+    private func messageWidth(in rect: NSRect) -> CGFloat {
+        rect.width
+            - Layout.horizontalPadding * 2
+            - Layout.timeWidth
+            - Layout.closeWidth
+            - Layout.controlGap * 2
     }
 
     @objc private func close() {
